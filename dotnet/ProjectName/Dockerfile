@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:2.0 AS build
+FROM mcr.microsoft.com/dotnet/aspnet:2.0 AS build
 WORKDIR /src
 COPY "ProjectName.sln" .
 RUN dotnet restore "ProjectName.sln"
