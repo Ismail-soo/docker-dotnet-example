@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/core/sdk:2.0-stretch AS build
+FROM mcr.microsoft.com/dotnet/core/aspnet:2.0-stretch-slim AS build
 WORKDIR /src
 COPY "ProjectName.sln" .
 RUN dotnet restore "ProjectName.sln"
