@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
+using Serilog.Sinks.ApplicationInsights;
 
 namespace Web
 {
@@ -25,7 +26,7 @@ namespace Web
             {
                 loggerConfig = loggerConfig.WriteTo.ApplicationInsights(
                     aiKey,
-                    new TraceTelemetryConverter()
+                    TelemetryConverter.Traces
                 );
             }
 
@@ -39,8 +40,11 @@ namespace Web
 
                 builder.Host.UseSerilog();
 
-                var startup = new Startup(builder.Configuration, 
-                    Log.Logger.ForContext<Startup>());
+                var startup = new Startup(
+                    builder.Configuration,
+                    Log.Logger.ForContext<Startup>()
+                );
+
                 startup.ConfigureServices(builder.Services);
 
                 var app = builder.Build();
