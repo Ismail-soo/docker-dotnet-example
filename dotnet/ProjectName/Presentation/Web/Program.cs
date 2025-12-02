@@ -1,13 +1,8 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using ProjectName.Business.Core.Utilities;
-using Microsoft.AspNetCore;
-using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
@@ -18,27 +13,41 @@ namespace Web
     {
         public static int Main(string[] args)
         {
-            // Configure logging first so everything moving forward can use the same logging
-            var logger = new LoggerConfiguration()
+            // Setup Serilog awal
+            var loggerConfig = new LoggerConfiguration()
                 .MinimumLevel.Debug()
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
                 .Enrich.FromLogContext()
                 .WriteTo.Console(theme: AnsiConsoleTheme.Code);
-                
-            // Configure application insights if key is provided
-            var applicationInsightsKey = System.Environment.GetEnvironmentVariable("WEB_APPLICATION_INSIGHTS_KEY");
-            if (!string.IsNullOrWhiteSpace(applicationInsightsKey)) {
-                Log.Information("Using Application Insights with Logger");
-                logger = logger.WriteTo.ApplicationInsightsEvents(applicationInsightsKey);
+
+            // Optional Application Insights
+            var aiKey = Environment.GetEnvironmentVariable("WEB_APPLICATION_INSIGHTS_KEY");
+            if (!string.IsNullOrWhiteSpace(aiKey))
+            {
+                Log.Information("Using Application Insights with Serilog");
+                loggerConfig = loggerConfig.WriteTo.ApplicationInsights(aiKey, TelemetryConverter.Events);
             }
 
-            // Instantiate the logger!
-            Log.Logger = logger.CreateLogger();
+            Log.Logger = loggerConfig.CreateLogger();
 
             try
             {
-                Log.Information("Starting web host");
-                BuildWebHost(args).Run();
+                Log.Information("Starting Web Host");
+
+                var builder = WebApplication.CreateBuilder(args);
+
+                // Integrate Serilog into .NET host
+                builder.Host.UseSerilog();
+
+                // Add Startup.cs style support
+                var startup = new Startup(builder.Configuration, Log.Logger.ForContext<Startup>());
+                startup.ConfigureServices(builder.Services);
+
+                var app = builder.Build();
+                startup.Configure(app, app.Environment);
+
+                app.Run();
+
                 return 0;
             }
             catch (Exception ex)
@@ -51,11 +60,5 @@ namespace Web
                 Log.CloseAndFlush();
             }
         }
-
-        public static IWebHost BuildWebHost(string[] args) =>
-            WebHost.CreateDefaultBuilder(args)
-                .UseStartup<Startup>()
-                .UseSerilog()
-                .Build();
     }
 }

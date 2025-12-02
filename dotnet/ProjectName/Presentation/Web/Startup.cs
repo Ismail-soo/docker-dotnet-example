@@ -1,75 +1,55 @@
 using System;
-using System.IO;
 using Data.SqlServer;
 using ProjectName.Business.Core.Interfaces.Data;
 using ProjectName.Business.Core.Utilities;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Razor;
-using Microsoft.AspNetCore.SpaServices.Webpack;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Mvc.Razor;
 
 namespace Web
 {
     public class Startup
     {
-        #region Properties
-
-        private IConfiguration _configuration { get; }
-        private ILogger<Startup> _logger { get; }
-
-        #endregion
-
-        #region Constructor
+        private readonly IConfiguration _configuration;
+        private readonly ILogger<Startup> _logger;
 
         public Startup(IConfiguration configuration, ILogger<Startup> logger)
         {
             _configuration = configuration;
-            _logger       = logger;
+            _logger = logger;
         }
-        
-        #endregion
 
-        // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            // Add database context (ultimately will be in AddFathom extension method)
-            var connectionString = Configuration.GetConnectionString();
-            services.AddDbContext<ProjectNameContext>(ServiceLifetime.Scoped);
-            services.AddScoped                                    ((sp) => new ProjectNameContext(connectionString));
-            services.AddScoped<ProjectNameContext>                ((sp) => new ProjectNameContext(connectionString));
-            services.AddScoped<IContext>                          ((sp) => new ProjectNameContext(connectionString));
-            services.AddScoped<IProjectNameContext>               ((sp) => new ProjectNameContext(connectionString));
+            var connectionString = _configuration.GetConnectionString("DefaultConnection");
 
+            // Register DbContext (sederhana dan sudah benar di .NET 8)
+            services.AddDbContext<ProjectNameContext>();
+            services.AddScoped<IContext, ProjectNameContext>();
+            services.AddScoped<IProjectNameContext, ProjectNameContext>();
 
-
-
+            // Razor View Expander
             services.Configure<RazorViewEngineOptions>(options =>
             {
-                var expander = new ProjectViewLocationExpander();
-                options.ViewLocationExpanders.Add(expander);
+                options.ViewLocationExpanders.Add(new ProjectViewLocationExpander());
             });
 
-            services.AddMvc();
+            // MVC modern (.NET 8)
+            services.AddControllersWithViews();
         }
 
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
-            var webPort = System.Environment.GetEnvironmentVariable("WEB_PORT");
+            var webPort = Environment.GetEnvironmentVariable("WEB_PORT");
             _logger.LogInformation($"[Startup.Configure] Started on port: {webPort}");
-            
 
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
-                app.UseWebpackDevMiddleware(new WebpackDevMiddlewareOptions
-                {
-                    HotModuleReplacement = true,
-                    ReactHotModuleReplacement = true
-                });
             }
             else
             {
@@ -77,18 +57,17 @@ namespace Web
             }
 
             app.UseStaticFiles();
+            app.UseRouting();
 
-            app.UseMvc(routes =>
+            app.UseAuthorization();
+
+            // Routing modern
+            app.UseEndpoints(endpoints =>
             {
-                routes.MapRoute(
+                endpoints.MapControllerRoute(
                     name: "default",
-                    template: "{controller=Home}/{action=Index}/{id?}");
-
-                routes.MapSpaFallbackRoute(
-                    name: "spa-fallback",
-                    defaults: new { controller = "Home", action = "Index" });
+                    pattern: "{controller=Home}/{action=Index}/{id?}");
             });
-
         }
     }
 }
