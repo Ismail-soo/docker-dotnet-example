@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using Serilog.Events;
+using Serilog.Sinks.ApplicationInsights.Sinks.ApplicationInsights.TelemetryConverters;
 using Serilog.Sinks.SystemConsole.Themes;
 
 namespace Web
@@ -13,19 +14,21 @@ namespace Web
     {
         public static int Main(string[] args)
         {
-            // Setup Serilog awal
+            // Setup dasar Serilog
             var loggerConfig = new LoggerConfiguration()
                 .MinimumLevel.Debug()
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
                 .Enrich.FromLogContext()
                 .WriteTo.Console(theme: AnsiConsoleTheme.Code);
 
-            // Optional Application Insights
+            // Application Insights (optional)
             var aiKey = Environment.GetEnvironmentVariable("WEB_APPLICATION_INSIGHTS_KEY");
             if (!string.IsNullOrWhiteSpace(aiKey))
             {
-                Log.Information("Using Application Insights with Serilog");
-                loggerConfig = loggerConfig.WriteTo.ApplicationInsights(aiKey, TelemetryConverter.Events);
+                loggerConfig = loggerConfig.WriteTo.ApplicationInsights(
+                    aiKey,
+                    new TraceTelemetryConverter()   // ← ini COMPATIBLE .NET 8
+                );
             }
 
             Log.Logger = loggerConfig.CreateLogger();
@@ -36,11 +39,13 @@ namespace Web
 
                 var builder = WebApplication.CreateBuilder(args);
 
-                // Integrate Serilog into .NET host
+                // Integrasi Serilog resmi .NET 8
                 builder.Host.UseSerilog();
 
-                // Add Startup.cs style support
-                var startup = new Startup(builder.Configuration, Log.Logger.ForContext<Startup>());
+                // Kompatibilitas dengan Startup.cs lama
+                var startupLogger = Log.ForContext<Startup>();
+                var startup = new Startup(builder.Configuration, startupLogger);
+
                 startup.ConfigureServices(builder.Services);
 
                 var app = builder.Build();
