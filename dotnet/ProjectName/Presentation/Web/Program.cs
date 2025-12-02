@@ -7,6 +7,7 @@ using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 using Serilog.Sinks.ApplicationInsights;
+using Serilog.Sinks.ApplicationInsights.Sinks.ApplicationInsights.TelemetryConverters;
 
 namespace Web
 {
@@ -14,51 +15,50 @@ namespace Web
     {
         public static int Main(string[] args)
         {
-                    var loggerConfig = new LoggerConfiguration()
-            .MinimumLevel.Debug()
-            .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-            .Enrich.FromLogContext()
-            .WriteTo.Console(theme: AnsiConsoleTheme.Code);
+            var loggerConfig = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                .Enrich.FromLogContext()
+                .WriteTo.Console(theme: AnsiConsoleTheme.Code);
 
-        var aiKey = Environment.GetEnvironmentVariable("WEB_APPLICATION_INSIGHTS_KEY");
+            var aiKey = Environment.GetEnvironmentVariable("WEB_APPLICATION_INSIGHTS_KEY");
 
-        if (!string.IsNullOrWhiteSpace(aiKey))
-        {
-            loggerConfig = loggerConfig.WriteTo.ApplicationInsights(
-                aiKey,
-                TelemetryConverter.Traces
-            );
-        }
+            if (!string.IsNullOrWhiteSpace(aiKey))
+            {
+                loggerConfig = loggerConfig.WriteTo.ApplicationInsights(
+                    aiKey,
+                    new TraceTelemetryConverter()   // FIX
+                );
+            }
 
-        Log.Logger = loggerConfig.CreateLogger();
+            Log.Logger = loggerConfig.CreateLogger();
 
-        try
-        {
-            Log.Information("Starting Web Host");
+            try
+            {
+                Log.Information("Starting Web Host");
 
-            var builder = WebApplication.CreateBuilder(args);
+                var builder = WebApplication.CreateBuilder(args);
 
-            builder.Host.UseSerilog();
+                builder.Host.UseSerilog();
 
-            var startup = new Startup(builder.Configuration);
-            startup.ConfigureServices(builder.Services);
+                var startup = new Startup(builder.Configuration);
+                startup.ConfigureServices(builder.Services);
 
-            var app = builder.Build();
-            startup.Configure(app, app.Environment);
+                var app = builder.Build();
+                startup.Configure(app, app.Environment);
 
-            app.Run();
-            return 0;
-        }
-        catch (Exception ex)
-        {
-            Log.Fatal(ex, "Host terminated unexpectedly");
-            return 1;
-        }
-        finally
-        {
-            Log.CloseAndFlush();
-        }
-
+                app.Run();
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                Log.Fatal(ex, "Host terminated unexpectedly");
+                return 1;
+            }
+            finally
+            {
+                Log.CloseAndFlush();
+            }
         }
     }
 }
