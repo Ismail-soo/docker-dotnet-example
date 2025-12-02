@@ -10,7 +10,6 @@
 #     - likely environments: production, staging
 # ---------------------------------------------------------------------------------
 
-version: "3.3"
 
 services:
   web:
