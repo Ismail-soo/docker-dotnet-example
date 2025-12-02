@@ -7,7 +7,7 @@ using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 using Serilog.Sinks.ApplicationInsights;
-using Serilog.Sinks.ApplicationInsights.Sinks.ApplicationInsights.TelemetryConverters;
+using Serilog.Sinks.ApplicationInsights.TelemetryConverters;
 
 namespace Web
 {
@@ -27,7 +27,7 @@ namespace Web
             {
                 loggerConfig = loggerConfig.WriteTo.ApplicationInsights(
                     aiKey,
-                    new TraceTelemetryConverter()   // FIX
+                    new TraceTelemetryConverter()
                 );
             }
 
